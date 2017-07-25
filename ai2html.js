@@ -285,7 +285,7 @@ var cssTextStyleProperties = [
   'mix-blend-mode'
 ];
 
-var nyt5Breakpoints = [
+var breakpointConfig = [
   { name:"xsmall"    , lowerLimit:   0, upperLimit: 180 },
   { name:"small"     , lowerLimit: 180, upperLimit: 300 },
   { name:"smallplus" , lowerLimit: 300, upperLimit: 460 },
@@ -497,7 +497,7 @@ function render() {
   // assign artboards to their corresponding breakpoints
   // ================================================
   // (can have more than one artboard per breakpoint.)
-  var breakpoints = assignBreakpointsToArtboards(nyt5Breakpoints);
+  var breakpoints = assignBreakpointsToArtboards(breakpointConfig);
 
   // ================================================
   // initialization for NYT environment
