@@ -3289,7 +3289,7 @@ function generateOutputHtml(pageContent, pageName, settings) {
   checkForOutputFolder(htmlFileDestinationFolder, "html_output_path");
   htmlFileDestination = htmlFileDestinationFolder + pageName + settings.html_output_extension;
 
-  if (settings.output == 'one-file' && previewProjectType == 'ai2html') {
+  if (settings.output == 'one-file') {
     htmlFileDestination = htmlFileDestinationFolder + "index" + settings.html_output_extension;
   }
 
@@ -3297,7 +3297,7 @@ function generateOutputHtml(pageContent, pageName, settings) {
   saveTextFile(htmlFileDestination, textForFile);
 
   // process local preview template if appropriate
-  if (settings.local_preview_template !== "") {
+  if (settings.local_preview_template && fileExists(docPath + settings.local_preview_template)) {
     // TODO: may have missed a condition, need to compare with original version
     var previewFileDestination = htmlFileDestinationFolder + pageName + ".preview.html";
     outputLocalPreviewPage(textForFile, previewFileDestination, settings);
