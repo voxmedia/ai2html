@@ -74,7 +74,7 @@ var defaultBaseSettings = {
   },
   create_promo_image: {
     defaultValue: "yes",
-    includeInSettingsBlock: true,
+    includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "text",
@@ -82,7 +82,8 @@ var defaultBaseSettings = {
     notes: ""
   },
   image_format: {
-    defaultValue: ["auto"], includeInSettingsBlock: true,
+    defaultValue: ["auto"],
+    includeInSettingsBlock: true,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "array",
@@ -136,7 +137,7 @@ var defaultBaseSettings = {
   },
   html_output_path: {
     defaultValue: "/ai2html-output/",
-    includeInSettingsBlock: true,
+    includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "folderPath",
@@ -145,7 +146,7 @@ var defaultBaseSettings = {
   },
   html_output_extension: {
     defaultValue: ".html",
-    includeInSettingsBlock: true,
+    includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "fileExtension",
@@ -154,7 +155,7 @@ var defaultBaseSettings = {
   },
   image_output_path: {
     defaultValue: "",
-    includeInSettingsBlock: true,
+    includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "folderPath",
@@ -162,7 +163,8 @@ var defaultBaseSettings = {
     notes: "This is where the image files get written to locally and should be written as if the html_output is the starting point."
   },
   image_source_path: {
-    defaultValue: null, includeInSettingsBlock: false,
+    defaultValue: null,
+    includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "folderPath",
@@ -188,7 +190,7 @@ var defaultBaseSettings = {
     notes: "This only gets used to write the config file. It’s not used in the nyt mode to read the config.yml. Path should written relative to the ai file location."
   },
   local_preview_template: {
-    defaultValue: "",
+    defaultValue: "preview.html.ejs",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -206,7 +208,8 @@ var defaultBaseSettings = {
     notes: ""
   },
   png_number_of_colors: {
-    defaultValue: 128, includeInSettingsBlock: true,
+    defaultValue: 128,
+    includeInSettingsBlock: true,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "integer",
@@ -214,7 +217,8 @@ var defaultBaseSettings = {
     notes: ""
   },
   jpg_quality: {
-    defaultValue: 60, includeInSettingsBlock: true,
+    defaultValue: 60,
+    includeInSettingsBlock: true,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "integer",
