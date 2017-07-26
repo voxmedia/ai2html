@@ -1530,6 +1530,7 @@ function detectTimesFonts() {
 }
 
 function initDocumentSettings() {
+  ai2htmlBaseSettings = defaultBaseSettings;
   // initialize document settings
   docSettings = {};
   for (var setting in defaultBaseSettings) {
@@ -3368,7 +3369,7 @@ function generateOutputHtml(pageContent, pageName, settings) {
       var previewFileDestination = htmlFileDestinationFolder + pageName + ".preview.html";
       outputLocalPreviewPage(textForFile, previewFileDestination, settings);
     } else {
-      warnings.push('Can\'t find preview template file "' + tmplFile + '" needed to generate the preview.');
+      warnings.push('Can\'t find "' + tmplFile + '" needed to generate the preview.');
     }
   }
 }
