@@ -3361,10 +3361,15 @@ function generateOutputHtml(pageContent, pageName, settings) {
   saveTextFile(htmlFileDestination, textForFile);
 
   // process local preview template if appropriate
-  if (settings.local_preview_template !== "") {
-    // TODO: may have missed a condition, need to compare with original version
-    var previewFileDestination = htmlFileDestinationFolder + pageName + ".preview.html";
-    outputLocalPreviewPage(textForFile, previewFileDestination, settings);
+  if (settings.local_preview_template) {
+    var tmplFile = docPath + settings.local_preview_template;
+    if (fileExists(tmplFile)) {
+      // TODO: may have missed a condition, need to compare with original version
+      var previewFileDestination = htmlFileDestinationFolder + pageName + ".preview.html";
+      outputLocalPreviewPage(textForFile, previewFileDestination, settings);
+    } else {
+      warnings.push('Can\'t find preview template file "' + tmplFile + '" needed to generate the preview.');
+    }
   }
 }
 } // end main() function definition
