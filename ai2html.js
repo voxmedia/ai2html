@@ -154,7 +154,7 @@ var defaultBaseSettings = {
     notes: "This is ignored if the project_type in the yml is ai2html."
   },
   image_output_path: {
-    defaultValue: "images",
+    defaultValue: "images/",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -227,7 +227,7 @@ var defaultBaseSettings = {
   },
   center_html_output: {
     defaultValue: "true",
-    includeInSettingsBlock: false,
+    includeInSettingsBlock: true,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "text",
