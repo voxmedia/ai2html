@@ -324,6 +324,15 @@ var defaultBaseSettings = {
     possibleValues: "",
     notes: "If you put a url in this field, an <a> tag will be added, wrapping around the output and pointing to that url."
   },
+  simple_image_filenames: {
+    defaultValue: "yes",
+    includeInSettingsBlock: false,
+    includeInConfigFile: false,
+    useQuoteMarksInConfigFile: false,
+    inputType: "yesNo",
+    possibleValues: "",
+    notes: "Only the artboard name is used for the image filename, AI filename is not used."
+  },
   testing_mode: {
     defaultValue: "no",
     includeInSettingsBlock: false,
@@ -2760,7 +2769,7 @@ function convertAreaTextPath(frame) {
 // ab: artboard (assumed to be the active artboard)
 // textFrames:  text frames belonging to the active artboard
 function captureArtboardImage(ab, textFrames, masks, settings) {
-  var docArtboardName = getArtboardFullName(ab);
+  var docArtboardName = isTrue(docSettings.simple_image_filenames) ? getArtboardName(ab) : getArtboardFullName(ab);
   var imageDestinationFolder = docPath + settings.html_output_path + settings.image_output_path;
   var imageDestination = imageDestinationFolder + docArtboardName;
   var i;
@@ -2786,7 +2795,7 @@ function captureArtboardImage(ab, textFrames, masks, settings) {
 
 // Create an <img> tag for the artboard image
 function generateImageHtml(ab, settings) {
-  var abName = getArtboardFullName(ab),
+  var abName = isTrue(docSettings.simple_image_filenames) ? getArtboardName(ab) : getArtboardFullName(ab),
       abPos = convertAiBounds(ab.artboardRect),
       imgId = nameSpace + "ai" + getArtboardId(ab) + "-0",
       extension = (settings.image_format[0] || "png").substring(0,3),
