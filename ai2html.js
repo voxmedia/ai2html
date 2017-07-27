@@ -145,7 +145,7 @@ var defaultBaseSettings = {
     notes: "Allows user to change folder to write html files, path should be written relative to ai file location. This is ignored if the project_type in the yml is ai2html."
   },
   html_output_extension: {
-    defaultValue: ".html",
+    defaultValue: ".html.erb",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -154,7 +154,7 @@ var defaultBaseSettings = {
     notes: "This is ignored if the project_type in the yml is ai2html."
   },
   image_output_path: {
-    defaultValue: "",
+    defaultValue: "images",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -190,7 +190,7 @@ var defaultBaseSettings = {
     notes: "This only gets used to write the config file. It’s not used in the nyt mode to read the config.yml. Path should written relative to the ai file location."
   },
   local_preview_template: {
-    defaultValue: "preview.html.ejs",
+    defaultValue: "",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -280,7 +280,7 @@ var defaultBaseSettings = {
     notes: "If set to “yes”, ai2html adds data-min-width and data-max-width attributes to each artboard"
   },
   include_resizer_script: {
-    defaultValue: "yes",
+    defaultValue: "no",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -299,7 +299,7 @@ var defaultBaseSettings = {
   },
   render_rotated_skewed_text_as: {
     defaultValue: "html",
-    includeInSettingsBlock: false,
+    includeInSettingsBlock: true,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "text",
