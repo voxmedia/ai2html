@@ -262,7 +262,7 @@ var defaultBaseSettings = {
     notes: "This setting is no longer needed beginning with v0.60 unless you are using the old resizer classes for legacy reasons."
   },
   include_resizer_classes: {
-    defaultValue: "yes",
+    defaultValue: "no",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -280,7 +280,7 @@ var defaultBaseSettings = {
     notes: "If set to “yes”, ai2html adds data-min-width and data-max-width attributes to each artboard"
   },
   include_resizer_script: {
-    defaultValue: "no",
+    defaultValue: "yes",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
