@@ -6,11 +6,15 @@ VERSION=$(node -p "require('./package.json').version")
 # Get the license text
 LICENSE=$(cat LICENSE)
 
-# Get all the contents of all the files in src/, contatenated togehter
+# Get all the contents of all the files in src/lib, concatenated together
 LIB_CODE=$(cat src/lib/*.js)
+# Get the contents of src/main
 MAIN_CODE=$(cat src/main.js)
 
+# Loop over every json file in config/, and output a copy of ai2html for each
 for f in config/*.json; do
+  # get the base filename for this config file, use it as the script's
+  # environment name
   filename=$(basename "$f")
   ENV="${filename%.*}"
   FILENAME="ai2html-$ENV.jsx"
