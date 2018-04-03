@@ -140,12 +140,33 @@ describe('Utility function tests', function() {
 
   });
 
-  describe('cleanText()', function() {
+  describe('cleanHtmlText()', function() {
     it('Replaces apostrophe with &rsquo;', function() {
-      assert.equal(lib.cleanText('1980\u2019s'), '1980&rsquo;s');
+      assert.equal(lib.cleanHtmlText('1980\u2019s'), '1980&rsquo;s');
     });
   });
 
+  describe('pathJoin()', function() {
+    it('Adds fwd slash to separate directories', function() {
+      assert.equal(lib.pathJoin('ai', 'output'), 'ai/output');
+    })
 
+    it('handles empty directory', function() {
+      assert.equal(lib.pathJoin('', 'ab.svg'), 'ab.svg');
+    })
 
+    it('removes duplicate slashes', function() {
+      assert.equal(lib.pathJoin('ai/', '/output/', 'image.svg'), 'ai/output/image.svg');
+    })
+  })
+
+  describe('pathJoin()', function() {
+    it('test1', function() {
+      assert.deepEqual(lib.pathSplit('output/images/image.jpg'), ['output/images', 'image.jpg']);
+    })
+
+    it('test2', function() {
+      assert.deepEqual(lib.pathSplit('image.svg'), ['', 'image.svg']);
+    })
+  })
 });

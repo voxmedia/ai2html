@@ -7,7 +7,10 @@ function main() {
 // See (for example) https://forums.adobe.com/thread/1810764 and
 // http://wwwimages.adobe.com/content/dam/Adobe/en/devnet/pdf/illustrator/scripting/Readme.txt
 
-var scriptVersion = "0.65.2"; // Increment final digit for bug fixes, middle digit for new functionality
+// Increment final digit for bug fixes, middle digit for new functionality.
+// Remember to add an entry in CHANGELOG when updating the version number
+// And update the version number in package.json
+var scriptVersion = "0.67.1";
 
 // ai2html is a script for Adobe Illustrator that converts your Illustrator document into html and css.
 // Copyright (c) 2011-2015 The New York Times Company
@@ -567,6 +570,7 @@ var blendModes = [
 ];
 
 // list of CSS properties used for translating AI text styles
+// (used for creating a unique identifier for each style)
 var cssTextStyleProperties = [
   'font-family',
   'font-size',
@@ -574,6 +578,7 @@ var cssTextStyleProperties = [
   'font-style',
   'color',
   'line-height',
+  'height', // used for point-type paragraph styles
   'letter-spacing',
   'opacity',
   'padding-top',
@@ -612,6 +617,7 @@ var errors   = [];
 var oneTimeWarnings = [];
 var textFramesToUnhide = [];
 var objectsToRelock = [];
+var svgLayersToUnhide = [];
 
 // Global variables set by main()
 var docSettings = {};
@@ -632,19 +638,27 @@ if (runningInNode()) {
     firstBy,
     zeroPad,
     roundTo,
+    pathJoin,
+    pathSplit,
     folderExists,
     formatCss,
     getCssColor,
     readGitConfigFile,
     readYamlConfigFile,
     applyTemplate,
-    cleanText,
+    cleanHtmlText,
+    addEnclosingTag,
+    stripTag,
+    cleanCodeBlock,
     findHtmlTag,
     cleanHtmlTags,
     convertSettingsToYaml,
     parseDataAttributes,
     parseArtboardName,
-    initDocumentSettings
+    parseObjectName,
+    cleanObjectName,
+    initDocumentSettings,
+    uniqAssetName
   ].forEach(function(f) {
     module.exports[f.name] = f;
   });
@@ -739,7 +753,7 @@ function render() {
   }
 
   // ================================================
-  // grab custom settings, html, css, js and text blocks
+  // import custom settings, html, css, js and text blocks
   // ================================================
   var documentHasSettingsBlock = false;
   var customBlocks = {};
@@ -761,11 +775,12 @@ function render() {
       parseSettingsEntries(entries, docSettings);
     } else if (type == 'text') {
       parseSettingsEntries(entries, docSettings);
-    } else { // custom js, css and html
+    } else {
+      // import custom js, css and html blocks
       if (!customBlocks[type]) {
         customBlocks[type] = [];
       }
-      customBlocks[type].push("\t\t" + cleanText(entries.join("\r\t\t")) + "\r");
+      customBlocks[type].push(cleanCodeBlock(type, entries.join('\r')));
     }
     if (objectOverlapsAnArtboard(thisFrame)) {
       hideTextFrame(thisFrame);
@@ -864,12 +879,12 @@ function render() {
   pBar = new ProgressBar({name: "Ai2html progress", steps: calcProgressBarSteps()});
   unlockObjects(); // Unlock containers and clipping masks
   var masks = findMasks(); // identify all clipping masks and their contents
-  var artboardContent = "";
+  var artboardContent = {html: "", css: "", js: ""};
 
   forEachUsableArtboard(function(activeArtboard, abNumber) {
     var abSettings = getArtboardSettings(activeArtboard);
     var docArtboardName  = getArtboardFullName(activeArtboard);
-    var textFrames, textData;
+    var textFrames, textData, imageData;
     doc.artboards.setActiveArtboardIndex(abNumber);
 
     // ========================
@@ -892,7 +907,9 @@ function render() {
 
     if (isTrue(docSettings.write_image_files)) {
       pBar.setTitle(docArtboardName + ': Capturing image...');
-      captureArtboardImage(activeArtboard, textFrames, masks, docSettings);
+      imageData = convertArtItems(activeArtboard, textFrames, masks, docSettings);
+    } else {
+      imageData = {html: ""};
     }
     pBar.step();
 
@@ -900,6 +917,13 @@ function render() {
     // finish generating artboard HTML and CSS
     //=====================================
 
+    artboardContent.html += "\r\t<!-- Artboard: " + getArtboardName(activeArtboard) + " -->\r" +
+       generateArtboardDiv(activeArtboard, breakpoints, docSettings) +
+       imageData.html +
+       textData.html +
+       "\t</div>\r";
+    artboardContent.css += generateArtboardCss(activeArtboard, textData.styles, docSettings);
+    /*
     artboardContent +=
       "\r\t<!-- Artboard: " + getArtboardName(activeArtboard) + " -->\r" +
       generateArtboardDiv(activeArtboard, breakpoints, docSettings) +
@@ -907,14 +931,16 @@ function render() {
       generateImageHtml(activeArtboard, docSettings) +
       textData.html +
       "\t</div>\r";
+    */
 
     //=====================================
     // output html file here if doing a file for every artboard
     //=====================================
 
     if (docSettings.output=="multiple-files") {
-      generateOutputHtml(addCustomContent(artboardContent, customBlocks), docArtboardName, docSettings);
-      artboardContent = "";
+      addCustomContent(artboardContent, customBlocks);
+      generateOutputHtml(artboardContent, docArtboardName, docSettings);
+      artboardContent = {html: "", css: "", js: ""};
     }
 
   }); // end artboard loop
@@ -924,7 +950,8 @@ function render() {
   //=====================================
 
   if (docSettings.output=="one-file") {
-    generateOutputHtml(addCustomContent(artboardContent, customBlocks), docName, docSettings);
+    addCustomContent(artboardContent, customBlocks);
+    generateOutputHtml(artboardContent, docName, docSettings);
   }
 
   //=====================================
@@ -1102,7 +1129,7 @@ function makeKeyword(text) {
   return text.replace( /[^A-Za-z0-9_\-]+/g , "_" );
 }
 
-function cleanText(text) {
+function cleanHtmlText(text) {
   for (var i=0; i < htmlCharacterCodes.length; i++) {
     var charCode = htmlCharacterCodes[i];
     if (text.indexOf(charCode[0]) > -1) {
@@ -1117,11 +1144,15 @@ function straightenCurlyQuotesInsideAngleBrackets(text) {
   // typed into text blocks (Illustrator tends to automatically change single
   // and double quotes to curly quotes).
   // thanks to jashkenas
+  // var quoteFinder = /[\u201C‘’\u201D]([^\n]*?)[\u201C‘’\u201D]/g;
   var tagFinder = /<[^\n]+?>/g;
-  var quoteFinder = /[\u201C‘’\u201D]([^\n]*?)[\u201C‘’\u201D]/g;
   return text.replace(tagFinder, function(tag){
-    return tag.replace( /[\u201C\u201D]/g , '"' ).replace( /[‘’]/g , "'" );
+    return straightenCurlyQuotes(tag);
   });
+}
+
+function straightenCurlyQuotes(str) {
+  return str.replace( /[\u201C\u201D]/g , '"' ).replace( /[‘’]/g , "'" );
 }
 
 // Not very robust -- good enough for printing a warning
@@ -1131,6 +1162,24 @@ function findHtmlTag(str) {
     match = /<(\w+)[^>]*>/.exec(str);
   }
   return match ? match[1] : null;
+}
+
+function addEnclosingTag(tagName, str) {
+  var openTag = '<' + tagName;
+  var closeTag = '</' + tagName + '>';
+  if ((new RegExp(openTag)).test(str) === false) {
+    str = openTag + '>\r' + str;
+  }
+  if ((new RegExp(closeTag)).test(str) === false) {
+    str = str + '\r' + closeTag;
+  }
+  return str;
+}
+
+function stripTag(tagName, str) {
+  var open = new RegExp('<' + tagName + '[^>]*>', 'g');
+  var close = new RegExp('</' + tagName + '>', 'g');
+  return str.replace(open, '').replace(close, '');
 }
 
 // precision: number of decimals in rounded number
@@ -1146,7 +1195,7 @@ function getDateTimeStamp() {
   var month = zeroPad(d.getMonth() + 1,2);
   var hour  = zeroPad(d.getHours(),2);
   var min   = zeroPad(d.getMinutes(),2);
-  return year + "-" + month + "-" + date + " - " + hour + ":" + min;
+  return year + "-" + month + "-" + date + " " + hour + ":" + min;
 }
 
 // obj: JS object containing css properties and values
@@ -1202,6 +1251,27 @@ function applyTemplate(template, replacements) {
   return template.replace(mustachePattern, replace).replace(ejsPattern, replace);
 }
 
+// Similar to Node.js path.join()
+function pathJoin() {
+  var path = "";
+  forEach(arguments, function(arg) {
+    if (!arg) return;
+    arg = String(arg);
+    arg = arg.replace(/^\/+/, "").replace(/\/+$/, "");
+    if (path.length > 0) {
+      path += '/';
+    }
+    path += arg;
+  });
+  return path;
+}
+
+// Split a full path into directory and filename parts
+function pathSplit(path) {
+  var parts = path.split('/');
+  var filename = parts.pop();
+  return [parts.join('/'), filename];
+}
 
 
 // ======================================
@@ -1227,6 +1297,13 @@ function folderExists(path) {
 
 function fileExists(path) {
   return new File(path).exists;
+}
+
+function deleteFile(path) {
+  var file = new File(path);
+  if (file.exists) {
+    file.remove();
+  }
 }
 
 function readYamlConfigFile(path) {
@@ -1428,7 +1505,7 @@ function runningInNode() {
 
 function isTestedIllustratorVersion(version) {
   var majorNum = parseInt(version);
-  return majorNum >= 18 && majorNum <= 21; // Illustrator CC 2014 through 2017
+  return majorNum >= 18 && majorNum <= 22; // Illustrator CC 2014 through 2018
 }
 
 function validateArtboardNames() {
@@ -1472,8 +1549,7 @@ function detectScriptEnvironment() {
 function detectTimesFonts() {
   var found = false;
   try {
-    app.textFonts.getByName('NYTFranklin-Medium') && app.textFonts.getByName('NYTCheltenham-Medium');
-    found = true;
+    found = !!(app.textFonts.getByName('NYTFranklin-Medium') && app.textFonts.getByName('NYTCheltenham-Medium'));
   } catch(e) {}
   return found;
 }
@@ -1504,6 +1580,23 @@ function initUtilityFunctions() {
   // Minified json2.js from https://github.com/douglascrockford/JSON-js
   // This code is in the public domain.
   if(typeof JSON!=="object"){JSON={}}(function(){"use strict";var rx_one=/^[\],:{}\s]*$/;var rx_two=/\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;var rx_three=/"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;var rx_four=/(?:^|:|,)(?:\s*\[)+/g;var rx_escapable=/[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;var rx_dangerous=/[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;function f(n){return n<10?"0"+n:n}function this_value(){return this.valueOf()}if(typeof Date.prototype.toJSON!=="function"){Date.prototype.toJSON=function(){return isFinite(this.valueOf())?this.getUTCFullYear()+"-"+f(this.getUTCMonth()+1)+"-"+f(this.getUTCDate())+"T"+f(this.getUTCHours())+":"+f(this.getUTCMinutes())+":"+f(this.getUTCSeconds())+"Z":null};Boolean.prototype.toJSON=this_value;Number.prototype.toJSON=this_value;String.prototype.toJSON=this_value}var gap;var indent;var meta;var rep;function quote(string){rx_escapable.lastIndex=0;return rx_escapable.test(string)?'"'+string.replace(rx_escapable,function(a){var c=meta[a];return typeof c==="string"?c:"\\u"+("0000"+a.charCodeAt(0).toString(16)).slice(-4)})+'"':'"'+string+'"'}function str(key,holder){var i;var k;var v;var length;var mind=gap;var partial;var value=holder[key];if(value&&typeof value==="object"&&typeof value.toJSON==="function"){value=value.toJSON(key)}if(typeof rep==="function"){value=rep.call(holder,key,value)}switch(typeof value){case"string":return quote(value);case"number":return isFinite(value)?String(value):"null";case"boolean":case"null":return String(value);case"object":if(!value){return"null"}gap+=indent;partial=[];if(Object.prototype.toString.apply(value)==="[object Array]"){length=value.length;for(i=0;i<length;i+=1){partial[i]=str(i,value)||"null"}v=partial.length===0?"[]":gap?"[\n"+gap+partial.join(",\n"+gap)+"\n"+mind+"]":"["+partial.join(",")+"]";gap=mind;return v}if(rep&&typeof rep==="object"){length=rep.length;for(i=0;i<length;i+=1){if(typeof rep[i]==="string"){k=rep[i];v=str(k,value);if(v){partial.push(quote(k)+(gap?": ":":")+v)}}}}else{for(k in value){if(Object.prototype.hasOwnProperty.call(value,k)){v=str(k,value);if(v){partial.push(quote(k)+(gap?": ":":")+v)}}}}v=partial.length===0?"{}":gap?"{\n"+gap+partial.join(",\n"+gap)+"\n"+mind+"}":"{"+partial.join(",")+"}";gap=mind;return v}}if(typeof JSON.stringify!=="function"){meta={"\b":"\\b","\t":"\\t","\n":"\\n","\f":"\\f","\r":"\\r",'"':'\\"',"\\":"\\\\"};JSON.stringify=function(value,replacer,space){var i;gap="";indent="";if(typeof space==="number"){for(i=0;i<space;i+=1){indent+=" "}}else if(typeof space==="string"){indent=space}rep=replacer;if(replacer&&typeof replacer!=="function"&&(typeof replacer!=="object"||typeof replacer.length!=="number")){throw new Error("JSON.stringify")}return str("",{"":value})}}if(typeof JSON.parse!=="function"){JSON.parse=function(text,reviver){var j;function walk(holder,key){var k;var v;var value=holder[key];if(value&&typeof value==="object"){for(k in value){if(Object.prototype.hasOwnProperty.call(value,k)){v=walk(value,k);if(v!==undefined){value[k]=v}else{delete value[k]}}}}return reviver.call(holder,key,value)}text=String(text);rx_dangerous.lastIndex=0;if(rx_dangerous.test(text)){text=text.replace(rx_dangerous,function(a){return"\\u"+("0000"+a.charCodeAt(0).toString(16)).slice(-4)})}if(rx_one.test(text.replace(rx_two,"@").replace(rx_three,"]").replace(rx_four,""))){j=eval("("+text+")");return typeof reviver==="function"?walk({"":j},""):j}throw new SyntaxError("JSON.parse")}}})(); // jshint ignore:line
+}
+
+// Clean the contents of custom JS, CSS and HTML blocks
+// (e.g. undo Illustrator's automatic quote conversion, where applicable)
+function cleanCodeBlock(type, raw) {
+  var clean = '';
+  if (type == 'html') {
+    clean = cleanHtmlText(straightenCurlyQuotesInsideAngleBrackets(raw));
+  } else if (type == 'js' ) {
+    // TODO: consider preserving curly quotes inside quoted strings
+    clean = straightenCurlyQuotes(raw);
+    clean = addEnclosingTag('script', clean);
+  } else if (type == 'css') {
+    clean = straightenCurlyQuotes(raw);
+    clean = stripTag('style', clean);
+  }
+  return clean;
 }
 
 function createSettingsBlock() {
@@ -1593,7 +1686,8 @@ function showCompletionAlert(showPrompt) {
   alertText += "\n";
   if (showPrompt) {
     alertText += rule + "Generate promo image?";
-    makePromo = confirm(alertHed  + alertText, true); // true: "No" is default
+    // confirm(<msg>, false) makes "Yes" the default (at Baden's request).
+    makePromo = confirm(alertHed  + alertText, false);
   } else {
     alertText += rule + "ai2html-nyt5 v" + scriptVersion;
     alert(alertHed + alertText);
@@ -1693,10 +1787,14 @@ function getArtboardId(ab) {
   return id;
 }
 
+function cleanObjectName(name) {
+  return makeKeyword(name.replace( /^(.+):.*$/, "$1"));
+}
+
 // TODO: prevent duplicate names? or treat duplicate names an an error condition?
 // (artboard name is assumed to be unique in several places)
 function getArtboardName(ab) {
-  return makeKeyword(ab.name.replace( /^(.+):.*$/, "$1"));
+  return cleanObjectName(ab.name);
 }
 
 function getArtboardFullName(ab) {
@@ -1741,31 +1839,54 @@ function getArtboardWidthRange(ab) {
   return [minw, maxw ? maxw - 1 : Infinity];
 }
 
-// Parse artboard-specific settings from artboard name
-function parseArtboardName(name) {
-  // parse old-style width declaration
-  var widthStr = (/^ai2html-(\d+)/.exec(name) || [])[1];
+// Parse data that is encoded in a name
+function parseObjectName(name) {
   // capture portion of name after colon
   var settingsStr = (/:(.*)/.exec(name) || [])[1] || "";
   var settings = {};
-  forEach(settingsStr.split(','), function(part) {
-    if (/^\d+$/.test(part)) {
-      widthStr = part;
-    } else if (part) {
-      // assuming setting is a flag
-      settings[part] = true;
-    }
-  });
+  // parse old-style width declaration
+  var widthStr = (/^ai2html-(\d+)/.exec(name) || [])[1];
   if (widthStr) {
     settings.width = parseFloat(widthStr);
   }
+  // remove suffixes added by copying
+  settingsStr = settingsStr.replace(/ copy.*/i, '');
+  forEach(settingsStr.split(','), function(part) {
+    var eq = part.indexOf('=');
+    var name, value;
+    if (/^\d+$/.test(part)) {
+      name = 'width';
+      value = part;
+    } else if (eq > 0) {
+      name = part.substr(0, eq);
+      value = part.substr(eq + 1);
+    } else if (part) {
+      // assuming setting is a flag
+      name = part;
+      value = "true";
+    }
+    if (name && value) {
+      if (/^\d+$/.test(value)) {
+        value = parseFloat(value);
+      } else if (isTrue(value)) {
+        value = true;
+      }
+      settings[name] = value;
+    }
+  });
   return settings;
+}
+
+// TODO: redundant -- remove
+function parseArtboardName(name) {
+  return parseObjectName(name);
 }
 
 function getArtboardSettings(ab) {
   // currently, artboard-specific settings are all stashed in the artboard name
   return parseArtboardName(ab.name);
 }
+
 
 // return array of data records about each usable artboard, sorted from narrow to wide
 function getArtboardInfo() {
@@ -1944,15 +2065,28 @@ function findCommonAncestorLayer(items) {
   return ancestorLyr;
 }
 
+// Test if a mask can be ignored
+// (An optimization -- currently only finds group masks with no text frames)
+function maskIsRelevant(mask) {
+  var parent = mask.parent;
+  if (parent.typename == "GroupItem") {
+    if (parent.textFrames.length === 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function findMasks() {
   var found = [],
-      masks;
+      masks, relevantMasks;
   // assumes clipping paths have been unlocked
   app.executeMenuCommand('Clipping Masks menu item');
   masks = toArray(doc.selection);
   clearSelection();
+  relevantMasks = filter(masks, maskIsRelevant);
   forEach(masks, function(mask) {mask.locked = true;});
-  forEach(masks, function(mask) {
+  forEach(relevantMasks, function(mask) {
     var items, obj;
     mask.locked = false;
     // select a single mask
@@ -2050,7 +2184,7 @@ function getCharStyle(c) {
   o.aifont = c.textFont.name;
   o.size = Math.round(c.size);
   o.capitalization = caps == 'FontCapsOption.NORMALCAPS' ? '' : caps;
-  o.tracking = c.tracking
+  o.tracking = c.tracking;
   return o;
 }
 
@@ -2144,11 +2278,12 @@ function importTextFrameParagraphs(textFrame) {
     } else {
       d = {
         text: p.contents,
-        aiStyle: getParagraphStyle(p, opacity),
+        aiStyle: getParagraphStyle(p),
         ranges: getParagraphRanges(p)
       };
       d.aiStyle.opacity = opacity;
       d.aiStyle.blendMode = blendMode;
+      d.aiStyle.frameType = textFrame.kind == TextType.POINTTEXT ? 'point' : 'area';
     }
     data.push(d);
     charsLeft -= (plen + 1); // char count + newline
@@ -2166,7 +2301,7 @@ function cleanHtmlTags(str) {
 }
 
 function generateParagraphHtml(pData, baseStyle, pStyles, cStyles) {
-  var html, diff, classname, range, text;
+  var html, diff, range, rangeHtml;
   if (pData.text.length === 0) { // empty pg
     // TODO: Calculate the height of empty paragraphs and generate
     // CSS to preserve this height (not supported by Illustrator API)
@@ -2175,23 +2310,19 @@ function generateParagraphHtml(pData, baseStyle, pStyles, cStyles) {
   diff = objectSubtract(pData.cssStyle, baseStyle);
   // Give the pg a class, if it has a different style than the base pg class
   if (diff) {
-    classname = getTextStyleClass(diff, pStyles, 'pstyle');
-    html = '<p class="' + classname + '">';
+    html = '<p class="' + getTextStyleClass(diff, pStyles, 'pstyle') + '">';
   } else {
     html = '<p>';
   }
   for (var j=0; j<pData.ranges.length; j++) {
     range = pData.ranges[j];
-    range.text = cleanHtmlTags(range.text);
+    rangeHtml = cleanHtmlText(cleanHtmlTags(range.text));
     diff = objectSubtract(range.cssStyle, pData.cssStyle);
     if (diff) {
-      classname = getTextStyleClass(diff, cStyles, 'cstyle');
-      html += '<span class="' + classname + '">';
+      rangeHtml = '<span class="' +
+      getTextStyleClass(diff, cStyles, 'cstyle') + '">' + rangeHtml + '</span>';
     }
-    html += cleanText(range.text);
-    if (diff) {
-      html += '</span>';
-    }
+    html += rangeHtml;
   }
   html += '</p>';
   return html;
@@ -2227,10 +2358,10 @@ function convertTextFrames(textFrames, ab) {
 
   var allStyles = pgStyles.concat(charStyles);
   var cssBlocks = map(allStyles, function(obj) {
-    return '.' + obj.classname + ' {' + formatCss(obj.style, '\t\t\t\t') + '\t\t\t}\r';
+    return '.' + obj.classname + ' {' + formatCss(obj.style, '\t\t') + '\t}\r';
   });
   if (divs.length > 0) {
-    cssBlocks.unshift('p {' + formatCss(baseStyle, '\t\t\t\t') + '\t\t\t}\r');
+    cssBlocks.unshift('p {' + formatCss(baseStyle, '\t\t') + '\t}\r');
   }
 
   return {
@@ -2253,7 +2384,8 @@ function deriveCssStyles(frameData) {
     'padding-bottom': 0,
     'padding-top': 0,
     'mix-blend-mode': 'normal',
-    'font-style': 'normal'
+    'font-style': 'normal',
+    'height': 'auto'
   };
   var defaultAiStyle = {
     opacity: 100 // given as AI style because opacity is converted to several CSS properties
@@ -2264,11 +2396,12 @@ function deriveCssStyles(frameData) {
     forEach(frame.paragraphs, analyzeParagraphStyle);
   });
 
-  // find the most common pg style and override certain properties
+  // initialize the base <p> style to be equal to the most common pg style
   if (pgStyles.length > 0) {
     pgStyles.sort(compareCharCount);
     extend(baseStyle, pgStyles[0].cssStyle);
   }
+  // override certain base style properties with default values
   extend(baseStyle, defaultCssStyle, convertAiTextStyle(defaultAiStyle));
   return baseStyle;
 
@@ -2417,6 +2550,10 @@ function convertAiTextStyle(aiStyle) {
   }
   if ('leading' in aiStyle) {
     cssStyle["line-height"] = aiStyle.leading + "px";
+    // Fix for line height error affecting point text in Chrome/Safari at certain browser zooms.
+    if (aiStyle.frameType == 'point') {
+      cssStyle.height = cssStyle["line-height"];
+    }
   }
   // if (('opacity' in aiStyle) && aiStyle.opacity < 100) {
   if ('opacity' in aiStyle) {
@@ -2645,9 +2782,10 @@ function getTextFrameCss(thisFrame, abBox, pgData) {
     // EXPERIMENTAL feature
     // Put a box around the text, if the text frame's textPath is styled
     styles += convertAreaTextPath(thisFrame);
-  } else {
+  } else {  // point text
     // point text aligned to midline (sensible default for chart y-axes, map labels, etc.)
     v_align = "middle";
+    htmlW += 22; // add a bit of extra width to try to prevent overflow
   }
 
   if (thisFrameAttributes.valign) {
@@ -2672,8 +2810,10 @@ function getTextFrameCss(thisFrame, abBox, pgData) {
   if (alignment == "right") {
     styles += "right:" + formatCssPct(abBox.width - (htmlL + htmlBox.width), abBox.width);
   } else if (alignment == "center") {
-    styles += "left:" + formatCssPct(htmlL + htmlBox.width/ 2, abBox.width);
-    styles += "margin-left:" + formatCssPct(-htmlW / 2, abBox.width);
+    styles += "left:" + formatCssPct(htmlL + htmlBox.width / 2, abBox.width);
+    // using pct margin causes problems in a dynamic layout, switching to pixels
+    // styles += "margin-left:" + formatCssPct(-htmlW / 2, abBox.width);
+    styles += "margin-left:-" + roundTo(htmlW / 2, 1) + 'px;';
   } else {
     styles += "left:" + formatCssPct(htmlL, abBox.width);
   }
@@ -2683,7 +2823,7 @@ function getTextFrameCss(thisFrame, abBox, pgData) {
     classes += ' ' + nameSpace + 'aiPointText';
     // using pixel width with point text, because pct width causes alignment problems -- see issue #63
     // adding extra pixels in case HTML width is slightly less than AI width (affects alignment of right-aligned text)
-    styles += "width:" + roundTo(htmlW + 2, cssPrecision) + 'px;';
+    styles += "width:" + roundTo(htmlW, cssPrecision) + 'px;';
   } else {
     // area text uses pct width, so width of text boxes will scale
     // TODO: consider only using pct width with wider text boxes that contain paragraphs of text
@@ -2716,45 +2856,140 @@ function convertAreaTextPath(frame) {
 // ai2html image functions
 // =================================
 
-// ab: artboard (assumed to be the active artboard)
-// textFrames:  text frames belonging to the active artboard
-function captureArtboardImage(ab, textFrames, masks, settings) {
-  var docArtboardName = isTrue(docSettings.simple_image_filenames) ? getArtboardName(ab) : getArtboardFullName(ab);
-  var imageDestinationFolder = docPath + settings.html_output_path + settings.image_output_path;
-  var imageDestination = imageDestinationFolder + docArtboardName;
-  var i;
-  checkForOutputFolder(imageDestinationFolder, "image_output_path");
+function getArtboardImageName(ab) {
+  return getArtboardFullName(ab);
+}
 
-  if (!isTrue(settings.testing_mode)) {
-    for (i=0; i<textFrames.length; i++) {
+function getLayerImageName(lyr, ab) {
+  return getArtboardImageName(ab) + "-" + cleanObjectName(lyr.name);
+}
+
+function getImageId(imgName) {
+  return nameSpace + imgName + "-img";
+}
+
+function uniqAssetName(name, names) {
+  var uniqName = name;
+  var num = 2;
+  while (contains(names, uniqName)) {
+    uniqName = name + '-' + num;
+    num++;
+  }
+  return uniqName;
+}
+
+
+// Generate images and return HTML embed code
+function convertArtItems(activeArtboard, textFrames, masks, settings) {
+  var imageFolder = getImageFolder(settings);
+  var imgName = getArtboardImageName(activeArtboard);
+  var imgFile = imgName + '.' + (settings.image_format[0] || "png").substring(0,3);
+  var imgId = getImageId(imgName);
+  var imgClass = nameSpace + 'aiImg';
+  var imageDestination = pathJoin(imageFolder, imgName);
+  var hideTextFrames = !isTrue(settings.testing_mode);
+  var html = "";
+  var n = textFrames.length;
+  var imageNames = [];
+  var svgLayers;
+  var i;
+
+  checkForOutputFolder(imageFolder, "image_output_path");
+
+  if (hideTextFrames) {
+    for (i=0; i<n; i++) {
       textFrames[i].hidden = true;
     }
   }
 
+  svgLayers = findSvgExportLayers();
+  if (svgLayers.length > 0) {
+    forEach(svgLayers, function(lyr) {
+      var svgName = uniqAssetName(getLayerImageName(lyr, activeArtboard), imageNames);
+      var svgId = getImageId(svgName);
+      var svgClass = imgClass + ' ' + nameSpace + 'aiAbs';
+      var outputPath = pathJoin(imageFolder, svgName);
+      var ofile = exportSVG(outputPath, activeArtboard, masks, [lyr]);
+      if (ofile) {
+        // only generate html for files that were created (empty files are not created)
+        message('Exported a layer as ' + ofile.replace(/.*\//, ''));
+        imageNames.push(svgName);
+        html += generateImageHtml(svgName + '.svg', svgId, svgClass, activeArtboard, settings);
+      }
+    });
+
+    // hide all svg Layers
+    forEach(svgLayers, function(lyr) {
+      lyr.visible = false;
+    });
+  }
+
+  captureArtboardImage(imageDestination, activeArtboard, masks, settings);
+  html += generateImageHtml(imgFile, imgId, imgClass, activeArtboard, settings);
+
+  // unhide svg export layers (if any)
+  forEach(svgLayers, function(lyr) {
+    lyr.visible = true;
+  });
+
+
+  if (hideTextFrames) {
+    for (i=0; i<n; i++) {
+      textFrames[i].hidden = false;
+    }
+  }
+
+  return {html: html};
+}
+
+function findLayers(layers, test) {
+  var retn = null;
+  forEach(layers, function(lyr) {
+    var found = null;
+    if (objectIsHidden(lyr)) {
+      // skip
+    } else if (test(lyr)) {
+      found = [lyr];
+    } else if (lyr.layers.length > 0) {
+      // examine sublayers (only if layer didn't test positive)
+      found = findLayers(lyr.layers, test);
+    }
+    if (found) {
+      retn = retn ? retn.concat(found) : found;
+    }
+  });
+  return retn;
+}
+
+function findSvgExportLayers() {
+  function test(lyr) {
+    return parseObjectName(lyr.name).svg;
+  }
+  return findLayers(doc.layers, test) || [];
+}
+
+function getImageFolder(settings) {
+  return pathJoin(docPath, settings.html_output_path, settings.image_output_path);
+}
+
+
+// ab: artboard (assumed to be the active artboard)
+// textFrames:  text frames belonging to the active artboard
+function captureArtboardImage(imageDestination, ab, masks, settings) {
   exportImageFiles(imageDestination, ab, settings.image_format, 1, docSettings.use_2x_images_if_possible);
   if (contains(settings.image_format, 'svg')) {
     exportSVG(imageDestination, ab, masks);
   }
-
-  if (!isTrue(settings.testing_mode)) {
-    for (i=0; i<textFrames.length; i++) {
-      textFrames[i].hidden = false;
-    }
-  }
 }
 
 // Create an <img> tag for the artboard image
-function generateImageHtml(ab, settings) {
-  var abName = isTrue(docSettings.simple_image_filenames) ? getArtboardName(ab) : getArtboardFullName(ab),
-      abPos = convertAiBounds(ab.artboardRect),
-      imgId = nameSpace + "ai" + getArtboardId(ab) + "-0",
-      extension = (settings.image_format[0] || "png").substring(0,3),
-      src = settings.image_source_path + abName + "." + extension,
+function generateImageHtml(imgFile, imgId, imgClass, ab, settings) {
+  var abPos = convertAiBounds(ab.artboardRect),
+      src = settings.image_source_path + imgFile,
       html;
 
-  html = '\t\t<img id="' + imgId + '" class="' + nameSpace + 'aiImg"';
+  html = '\t\t<img id="' + imgId + '" class="' + imgClass + '"';
   if (isTrue(settings.use_lazy_loader)) {
-    html += ' data-height-multiplier="' + roundTo(abPos.height / abPos.width, 4) + '"';
     html += ' data-src="' + src + '"';
     // spaceholder while image loads
     src = 'data:image/gif;base64,R0lGODlhCgAKAIAAAB8fHwAAACH5BAEAAAAALAAAAAAKAAoAAAIIhI+py+0PYysAOw==';
@@ -2873,33 +3108,43 @@ function exportImageFiles(dest, ab, formats, initialScaling, doubleres) {
 
 
 // Copy contents of an artboard to a temporary document, excluding objects
-// that are hidden by masks
+//   that are hidden by masks
+// layers Optional argument to copy specific layers (default is all layers)
+// Returns a newly-created document containing artwork to export, or null
+//   if no image should be created.
+//
 // TODO: grouped text is copied (but hidden). Avoid copying text in groups, for
 //   smaller SVG output.
-function copyArtboardForImageExport(ab, masks) {
+function copyArtboardForImageExport(ab, masks, layers) {
   var layerMasks = filter(masks, function(o) {return !!o.layer;}),
       artboardBounds = ab.artboardRect,
-      sourceLayers = toArray(doc.layers),
+      sourceLayers = layers || toArray(doc.layers),
       destLayer = doc.layers.add(),
       destGroup = doc.groupItems.add(),
+      itemCount = 0,
       groupPos, group2, doc2;
 
   destLayer.name = "ArtboardContent";
   destGroup.move(destLayer, ElementPlacement.PLACEATEND);
   forEach(sourceLayers, copyLayer);
-  // need to save group position before copying to second document. Oddly,
-  // the reported position of the original group changes after duplication
-  groupPos = destGroup.position;
-  // create temp document (pretty slow -- ~1.5s)
-  doc2 = app.documents.add(DocumentColorSpace.RGB, doc.width, doc.height, 1);
-  doc2.pageOrigin = doc.pageOrigin; // not sure if needed
-  doc2.rulerOrigin = doc.rulerOrigin;
-  doc2.artboards[0].artboardRect = artboardBounds;
-  group2 = destGroup.duplicate(doc2.layers[0], ElementPlacement.PLACEATEND);
-  group2.position = groupPos;
+
+  // kludge: export empty documents iff layers argument is missing (assuming
+  //    this is the main artboard image, which is needed to set the container size)
+  if (itemCount > 0 || !layers) {
+    // need to save group position before copying to second document. Oddly,
+    // the reported position of the original group changes after duplication
+    groupPos = destGroup.position;
+    // create temp document (pretty slow -- ~1.5s)
+    doc2 = app.documents.add(DocumentColorSpace.RGB, doc.width, doc.height, 1);
+    doc2.pageOrigin = doc.pageOrigin; // not sure if needed
+    doc2.rulerOrigin = doc.rulerOrigin;
+    doc2.artboards[0].artboardRect = artboardBounds;
+    group2 = destGroup.duplicate(doc2.layers[0], ElementPlacement.PLACEATEND);
+    group2.position = groupPos;
+  }
   destGroup.remove();
   destLayer.remove();
-  return doc2;
+  return doc2 || null;
 
   function copyLayer(lyr) {
     var mask;
@@ -2970,6 +3215,7 @@ function copyArtboardForImageExport(ab, masks) {
     var copy;
     if (!excluded) {
       copy = item.duplicate(dest, ElementPlacement.PLACEATEND); //  duplicateItem(item, dest);
+      itemCount++;
       if (copy.typename == 'GroupItem') {
         removeHiddenItems(copy);
       }
@@ -2977,26 +3223,71 @@ function copyArtboardForImageExport(ab, masks) {
   }
 }
 
-function exportSVG(dest, ab, masks) {
+// Returns path of output SVG file, or null if no file was created
+function exportSVG(dest, ab, masks, layers) {
   // Illustrator's SVG output contains all objects in a document (it doesn't
   //   clip to the current artboard), so we copy artboard objects to a temporary
   //   document for export.
-  var exportDoc = copyArtboardForImageExport(ab, masks);
+  var exportDoc = copyArtboardForImageExport(ab, masks, layers);
   var opts = new ExportOptionsSVG();
+  var ofile = dest + '.svg';
+
+  if (!exportDoc) return null;
+
   opts.embedAllFonts         = false;
   opts.fontSubsetting        = SVGFontSubsetting.None;
   opts.compressed            = false;
   opts.documentEncoding      = SVGDocumentEncoding.UTF8;
   opts.embedRasterImages     = isTrue(docSettings.svg_embed_images);
-  opts.DTD                   = SVGDTDVersion.SVG1_1;
+  // opts.DTD                   = SVGDTDVersion.SVG1_1;
+  opts.DTD                   = SVGDTDVersion.SVGTINY1_2;
   opts.cssProperties         = SVGCSSPropertyLocation.STYLEATTRIBUTES;
 
-  exportDoc.exportFile(new File(dest), ExportType.SVG, opts);
+  // SVGTINY* DTD variants:
+  //  * Smaller file size (50% on one test file)
+  //  * Convert raster/vector effects to external .png images (other DTDs use jpg)
+
+  exportDoc.exportFile(new File(ofile), ExportType.SVG, opts);
   doc.activate();
   //exportDoc.pageItems.removeAll();
   exportDoc.close(SaveOptions.DONOTSAVECHANGES);
+  rewriteSVGFile(ofile);
+  return ofile;
 }
 
+function rewriteSVGFile(path) {
+  var file = new File(path);
+  if (!file.exists) return;
+  file.open("r");
+  var content = file.read();
+  file.close();
+  // prevent SVG strokes from scaling
+  content = injectCSSinSVG(content, 'rect,circle,path,line,polyline { vector-effect: non-scaling-stroke; }');
+  // remove images from filesystem and SVG file
+  content = removeImagesInSVG(content, path);
+  saveTextFile(path, content);
+}
+
+function removeImagesInSVG(content, path) {
+  var dir = pathSplit(path)[0];
+  var count = 0;
+  content = content.replace(/<image[^<]+href="([^"]+)"[^<]+<\/image>/gm, function(match, href) {
+    count++;
+    deleteFile(pathJoin(dir, href));
+    return '';
+  });
+  if (count > 0) {
+    warnOnce("This document contains images or effects that can't be exported to SVG.");
+  }
+  return content;
+}
+
+// Note: stopped wrapping CSS in CDATA tags (caused problems with NYT cms)
+// TODO: check for XML reserved chars
+function injectCSSinSVG(content, css) {
+  var style = '<style type="text/css">\n' + css + '\n</style>';
+  return content.replace('</svg>', style + '\n</svg>');
+}
 
 
 // ===================================
@@ -3005,7 +3296,7 @@ function exportSVG(dest, ab, masks) {
 
 function generateArtboardDiv(ab, breakpoints, settings) {
   var divId = nameSpace + getArtboardFullName(ab);
-  var classnames = nameSpace + "artboard " + nameSpace + "artboard-v3";
+  var classnames = nameSpace + "artboard " + nameSpace + "artboard-v4";
   var widthRange = getArtboardWidthRange(ab);
   var html = "";
   if (!isFalse(settings.include_resizer_classes)) {
@@ -3036,11 +3327,10 @@ function findShowClassesForArtboard(ab, breakpoints) {
 }
 
 function generateArtboardCss(ab, textClasses, settings) {
-  var t3 = '\t\t\t',
+  var t3 = '\t',
       t4 = t3 + '\t',
       abId = "#" + nameSpace + getArtboardFullName(ab),
       css = "";
-  css += "\t\t<style type='text/css' media='screen,print'>\r";
   css += t3 + abId + " {\r";
   css += t4 + "position:relative;\r";
   css += t4 + "overflow:hidden;\r";
@@ -3053,16 +3343,14 @@ function generateArtboardCss(ab, textClasses, settings) {
   forEach(textClasses, function(cssBlock) {
     css += t3 + abId + " " + cssBlock;
   });
-
-  css += "\t\t</style>\r";
   return css;
 }
 
 // Get CSS styles that are common to all generated content
 function generatePageCss(containerId, settings) {
-  var css = "\r\t<style type='text/css' media='screen,print'>\r";
-  var t2 = '\t\t';
-  var t3 = '\t\t\t';
+  var css = "";
+  var t2 = '\t';
+  var t3 = '\t\t';
 
   if (!!settings.max_width) {
     css += t2 + "#" + containerId + " {\r";
@@ -3096,8 +3384,7 @@ function generatePageCss(containerId, settings) {
   css += t3 + "width:100% !important;\r";
   css += t2 + "}\r";
 
-  css += t2 + '.' + nameSpace + 'aiPointText p { white-space: nowrap; }\r'; // TODO: move to page css block
-  css += "\t</style>\r";
+  css += t2 + '.' + nameSpace + 'aiPointText p { white-space: nowrap; }\r';
   return css;
 }
 
@@ -3144,16 +3431,25 @@ function convertSettingsToYaml(settings) {
 }
 
 function getResizerScript() {
-  // The resizer function is embedded in the HTML page -- outside variables must
+  // The resizer function is embedded in the HTML page -- external variables must
   // be passed in.
   var resizer = function (scriptEnvironment, nameSpace) {
     // only want one resizer on the page
-    if (document.documentElement.className.indexOf(nameSpace + "resizer-v3-init") > -1) return;
-    document.documentElement.className += " " + nameSpace + "resizer-v3-init";
+    if (document.documentElement.className.indexOf(nameSpace + "resizer-v4-init") > -1) return;
+    document.documentElement.className += " " + nameSpace + "resizer-v4-init";
     // require IE9+
     if (!("querySelector" in document)) return;
+    function selectElements(selector, parent) {
+      var selection = (parent || document).querySelectorAll(selector);
+      return Array.prototype.slice.call(selection);
+    }
+    function setImgSrc(img) {
+      if (img.getAttribute("data-src") && img.getAttribute("src") != img.getAttribute("data-src")) {
+        img.setAttribute("src", img.getAttribute("data-src"));
+      }
+    }
     function updateSize() {
-      var elements = Array.prototype.slice.call(document.querySelectorAll("." + nameSpace + "artboard-v3[data-min-width]")),
+      var elements = selectElements("." + nameSpace + "artboard-v4[data-min-width]"),
           widthById = {};
       elements.forEach(function(el) {
         var parent = el.parentNode,
@@ -3162,10 +3458,7 @@ function getResizerScript() {
             maxwidth = el.getAttribute("data-max-width");
         if (parent.id) widthById[parent.id] = width; // only if parent.id is set
         if (+minwidth <= width && (+maxwidth >= width || maxwidth === null)) {
-          var img = el.querySelector("." + nameSpace + "aiImg");
-          if (img.getAttribute("data-src") && img.getAttribute("src") != img.getAttribute("data-src")) {
-            img.setAttribute("src", img.getAttribute("data-src"));
-          }
+          selectElements("." + nameSpace + "aiImg", el).forEach(setImgSrc);
           el.style.display = "block";
         } else {
           el.style.display = "none";
@@ -3190,12 +3483,14 @@ function getResizerScript() {
     }
 
     updateSize();
+
+    window.addEventListener('nyt:embed:load', updateSize); // for nyt vi compatibility
     document.addEventListener("DOMContentLoaded", updateSize);
-    // feel free to replace throttle with _.throttle, if available
+
     window.addEventListener("resize", throttle(updateSize, 200));
 
+    // based on underscore.js
     function throttle(func, wait) {
-      // based on underscore.js
       var _now = Date.now || function() { return +new Date(); },
           timeout = null, previous = 0;
       var run = function() {
@@ -3221,7 +3516,7 @@ function getResizerScript() {
   var resizerJs = '(' +
     trim(resizer.toString().replace(/  /g, '\t')) + // indent with tabs
     ')("' + scriptEnvironment + '", "' + nameSpace + '");';
-  return '<script type="text/javascript">\n\t' + resizerJs + '\n\t</script>\n\n';
+  return '<script type="text/javascript">\r\t' + resizerJs + '\r</script>\r';
 }
 
 
@@ -3235,28 +3530,30 @@ function outputLocalPreviewPage(textForFile, localPreviewDestination, settings) 
 
 function addCustomContent(content, customBlocks) {
   if (customBlocks.css) {
+    content.css += "\r\t/* Custom CSS */\r\t" + customBlocks.css.join('\r\t') + '\r';
+    /*
     content = "\r\t<style type='text/css' media='screen,print'>\r" +
-      "\t\t/* Custom CSS */\r\t\t" + customBlocks.css.join('\r\t\t') +
+      "\t\t" + customBlocks.css.join('\r\t\t') +
       "\t</style>\r" + content;
+    */
   }
   if (customBlocks.html) {
-    content += "\r\t<!-- Custom HTML -->\r" + customBlocks.html.join('\r') + '\r';
+    content.html += "\r<!-- Custom HTML -->\r" + customBlocks.html.join('\r') + '\r';
   }
   // TODO: assumed JS contained in <script> tag -- verify this?
   if (customBlocks.js) {
-    content += "\r\t<!-- Custom JS -->\r" + customBlocks.js.join('\r') + '\r';
+    content.js += "\r<!-- Custom JS -->\r" + customBlocks.js.join('\r') + '\r';
   }
-  return content;
 }
 
 // Wrap content HTML in a <div>, add styles and resizer script, write to a file
-function generateOutputHtml(pageContent, pageName, settings) {
+function generateOutputHtml(content, pageName, settings) {
   var linkSrc = settings.clickable_link || "";
-  var textForFile = "";
   var responsiveCss = "";
   var responsiveJs = "";
   var containerId = nameSpace + pageName + "-box";
-  var htmlFileDestination, htmlFileDestinationFolder;
+  var textForFile, html, js, css, commentBlock;
+  var htmlFileDestinationFolder;
 
   pBar.setTitle('Writing HTML output...');
 
@@ -3267,36 +3564,54 @@ function generateOutputHtml(pageContent, pageName, settings) {
     }
   }
   if (isTrue(settings.include_resizer_script)) {
-    responsiveJs  = '\t' + getResizerScript() + '\n';
+    responsiveJs  = getResizerScript();
     responsiveCss = "";
   }
 
-  // wrap content in a <div> tag
-  textForFile += '<div id="' + containerId + '" class="ai2html">\r';
+  // comments
+  commentBlock = "<!-- Generated by ai2html v" + scriptVersion + " - " +
+    getDateTimeStamp() + " -->\r" + "<!-- ai file: " + doc.name + " -->\r";
 
-  textForFile += "\t<!-- Generated by ai2html v" + scriptVersion + " - " + getDateTimeStamp() + " -->\r";
-  textForFile += "\t<!-- ai file: " + doc.name + " -->\r";
   if (scriptEnvironment == "nyt") {
-    textForFile += "\t<!-- preview: " + settings.preview_slug + " -->\r";
-    textForFile += "\t<!-- scoop  : " + settings.scoop_slug_from_config_yml + " -->\r";
+    commentBlock += "<!-- preview: " + settings.preview_slug + " -->\r";
   }
-  textForFile += generatePageCss(containerId, settings);
+  if (settings.scoop_slug_from_config_yml) {
+    commentBlock += "<!-- scoop: " + settings.scoop_slug_from_config_yml + " -->\r";
+  }
 
+  // HTML
+  html = '<div id="' + containerId + '" class="ai2html">\r';
   if (linkSrc) {
     // optional link around content
-    textForFile += "\t<a class='" + nameSpace + "ai2htmlLink' href='" + linkSrc + "'>\r";
+    html += "\t<a class='" + nameSpace + "ai2htmlLink' href='" + linkSrc + "'>\r";
   }
-
-  textForFile += responsiveCss;
-  textForFile += pageContent;
-  textForFile += responsiveJs;
-
+  html += content.html;
   if (linkSrc) {
-    textForFile += "\t</a>\r";
+    html += "\t</a>\r";
+  }
+  html += "\r</div>\r";
+
+  // CSS
+  css = "<style type='text/css' media='screen,print'>\r" +
+    generatePageCss(containerId, settings) +
+    content.css +
+    "\r</style>\r" + responsiveCss;
+
+  // JS
+  js = content.js + responsiveJs;
+
+  if (scriptEnvironment == "nyt") {
+    html = '<!-- SCOOP HTML -->\r' + commentBlock + html;
+    css = '<!-- SCOOP CSS -->\r' + commentBlock + css;
+    if (js) js ='<!-- SCOOP JS -->\r' + commentBlock + js;
   }
 
-  // close <div> wrapper
-  textForFile += "\t<!-- End ai2html" + " - " + getDateTimeStamp() + " -->\r</div>\r";
+  textForFile = css + '\r' + html + '\r' + js;
+
+  if (scriptEnvironment != "nyt") {
+    textForFile = commentBlock + textForFile +
+        "<!-- End ai2html" + " - " + getDateTimeStamp() + " -->\r";
+  }
 
   textForFile = applyTemplate(textForFile, settings);
   htmlFileDestinationFolder = docPath + settings.html_output_path;

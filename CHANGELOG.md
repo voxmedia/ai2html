@@ -1,3 +1,42 @@
+### v0.67.1
+- Remove fancy quotes from custom CSS and JS blocks. (AI likes to auto-convert regular double and single quotes to fancy quotes.)
+- Try to fix some other errors in custom CSS, JS and HTML blocks.
+
+### v0.67.0
+- Switched to more compact SVGTINY format for SVG output.
+- Show warning if SVG output includes linked images (Illustrator converts path effects into images during SVG export).
+- Delete images created by Illustrator during SVG output.
+- Remove "untested" warning when using Illustrator CC 2018.
+
+### v0.66.4
+- Fix for slight rightward shift of centered point text (Issue #84).
+
+### v0.66.3
+- Fix for bug causing misalignment of columns of text at some browser zooms, affecting Chrome and Safari (Issue #83).
+
+### v0.66.2
+- Fix: Prevent creation of single-layer image files with duplicate names.
+- Prevent export of single-layer SVG files containing no artwork.
+
+### v0.66.1
+- Prevent scaling of line and polyline objects in exported SVG files.
+
+### v0.66.0
+- Export content of layers with ":svg" appended to their layer name as SVG files.
+
+### v0.65.6
+- Prevent paths in SVG output from scaling by adding CSS to the .svg file.
+
+### v0.65.5
+- Made "Yes" the default when prompting to create a promo image.
+
+### v0.65.4
+- Use separate CSS, HTML and JS blocks for compatibility with NYT vi system.
+
+### v0.65.3
+- Added NYTCheltenhamCond-BoldXC
+- Improved performance on documents containing many masked images.
+
 ### v0.65.2
 - Auto-detect output image format if image_format is set to "auto". (Uses jpg if a placed image is visible, otherwise uses png.)
 - Detect NYT context by looking for proprietary Times fonts.
@@ -6,13 +45,11 @@
 ### v0.65.1
 - Change default use_lazy_loader setting to "yes" for NYT environment.
 
-
 ### v0.65.0
 - Promote `ai2html-beta.js` to `ai2html.js`, rename old `ai2html.js` to `ai2html-legacy.js`
 
 ### v0.64.1 (ai2html-beta.js)
 - Point text is valign:middle by default
-
 
 ### v0.64.0 (ai2html-beta.js)
 - Character styles applied to text inside a paragraph are now preserved (e.g. a bolded phrase).
