@@ -300,15 +300,6 @@ var defaultBaseSettings = {
     possibleValues: "",
     notes: "If you put a url in this field, an <a> tag will be added, wrapping around the output and pointing to that url."
   },
-  simple_image_filenames: {
-    defaultValue: "yes",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "yesNo",
-    possibleValues: "",
-    notes: "Only the artboard name is used for the image filename, AI filename is not used."
-  },
   testing_mode: {
     defaultValue: "no",
     includeInSettingsBlock: false,
