@@ -175,7 +175,7 @@ var defaultBaseSettings = {
     notes: "This is ignored in env=nyt."
   },
   config_file_path: {
-    defaultValue: "config.yml",
+    defaultValue: "src/config.yml",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -184,7 +184,7 @@ var defaultBaseSettings = {
     notes: "This only gets used to write the config file. It’s not used in the nyt mode to read the config.yml. Path should written relative to the ai file location."
   },
   local_preview_template: {
-    defaultValue: "",
+    defaultValue: "src/layout.mustache",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -283,7 +283,7 @@ var defaultBaseSettings = {
     notes: ""
   },
   render_rotated_skewed_text_as: {
-    defaultValue: "html",
+    defaultValue: "image",
     includeInSettingsBlock: true,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -407,6 +407,7 @@ var fonts = [
 {"aifont":"Georgia-Bold","family":"georgia,'times new roman',times,serif","weight":"bold","style":""},
 {"aifont":"Georgia-Italic","family":"georgia,'times new roman',times,serif","weight":"","style":"italic"},
 {"aifont":"Georgia-BoldItalic","family":"georgia,'times new roman',times,serif","weight":"bold","style":"italic"},
+
 {"aifont":"Balto-Medium","family":"'Balto', helvetica, sans-serif","weight":"400","style":""},
 {"aifont":"Balto-MediumItalic","family":"'Balto', helvetica, sans-serif","weight":"400","style":"italic"},
 {"aifont":"Balto-Bold","family":"'Balto', helvetica, sans-serif","weight":"700","style":""},
@@ -417,6 +418,29 @@ var fonts = [
 {"aifont":"Balto-Super","family":"'Balto', helvetica, sans-serif","weight":"700","style":""},
 {"aifont":"Balto-Thin","family":"'Balto', helvetica, sans-serif","weight":"400","style":""},
 {"aifont":"Balto-Ultra","family":"'Balto', helvetica, sans-serif","weight":"700","style":""},
+
+{"aifont":"Harriet-Medium","family":"'Harriet', helvetica, sans-serif","weight":"400","style":""},
+{"aifont":"Harriet-MediumItalic","family":"'Harriet', helvetica, sans-serif","weight":"400","style":"italic"},
+{"aifont":"Harriet-Bold","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"Harriet-BoldItalic","family":"'Harriet', helvetica, sans-serif","weight":"700","style":"italic"},
+{"aifont":"Harriet-Book","family":"'Harriet', helvetica, sans-serif","weight":"400","style":""},
+{"aifont":"Harriet-BookItalic","family":"'Harriet', helvetica, sans-serif","weight":"400","style":"italic"},
+{"aifont":"Harriet-Black","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"Harriet-Super","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"Harriet-Thin","family":"'Harriet', helvetica, sans-serif","weight":"400","style":""},
+{"aifont":"Harriet-Ultra","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
+
+{"aifont":"HarrietDisplay-Medium","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":""},
+{"aifont":"HarrietDisplay-MediumItalic","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":"italic"},
+{"aifont":"HarrietDisplay-Bold","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"HarrietDisplay-BoldItalic","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":"italic"},
+{"aifont":"HarrietDisplay-Book","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":""},
+{"aifont":"HarrietDisplay-BookItalic","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":"italic"},
+{"aifont":"HarrietDisplay-Black","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"HarrietDisplay-Super","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"HarrietDisplay-Thin","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":""},
+{"aifont":"HarrietDisplay-Ultra","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
+
 {"aifont":"NittiGrotesk","family":"'Nitti',helvetica, sans-serif","weight":"400","style":""},
 {"aifont":"NittiGrotesk-Bold","family":"'Nitti-Bold','Nitti',helvetica, sans-serif","weight":"700","style":""}
 ];
