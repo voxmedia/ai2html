@@ -58,13 +58,22 @@ var scriptVersion = "0.67.1";
 // Copy the contents from column Images and replace the settings statements:
 var defaultBaseSettings = {
   create_promo_image: {
-    defaultValue: "yes",
+    defaultValue: "no",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "text",
     possibleValues: "",
     notes: ""
+  },
+  create_fallback_images: {
+    defaultValue: "yes",
+    includeInSettingsBlock: false,
+    includeInConfigFile: false,
+    useQuoteMarksInConfigFile: false,
+    inputType: "yesNo",
+    possibleValues: "",
+    notes: "Set this to 'yes' to export an image of each artboard in addition to html output"
   },
   image_format: {
     defaultValue: ["auto"],
@@ -139,7 +148,7 @@ var defaultBaseSettings = {
     notes: "This is ignored if the project_type in the yml is ai2html."
   },
   image_output_path: {
-    defaultValue: "images/",
+    defaultValue: "",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -830,6 +839,13 @@ function render() {
         yamlStr = generateYamlFileContent(breakpoints, docSettings);
     checkForOutputFolder(yamlPath.replace(/[^\/]+$/, ""), "configFileFolder");
     saveTextFile(yamlPath, yamlStr);
+  }
+
+  //=====================================
+  // write fallback images
+  //=====================================
+  if ( isTrue(docSettings.create_fallback_images) ) {
+    createFallbackImages(docSettings)
   }
 
 } // end render()
@@ -2894,6 +2910,16 @@ function createPromoImage(settings) {
   exportImageFiles(imageDestination, artboard, [promoFormat], promoScale, "no");
   settings.png_transparent = tmpPngTransparency;
   alert("Promo image created\nLocation: " + imageDestination + "." + promoFormat);
+}
+
+// Create images for each artboard to use as fallback images for platforms that don't support html
+function createFallbackImages(settings) {
+  var format = contains(settings.image_format, 'jpg') ? 'jpg' : 'png'
+  forEachUsableArtboard(function(ab, abNumber) {
+    var dest = docPath + settings.html_output_path + 'fallback-' + makeKeyword(ab.name)
+    doc.artboards.setActiveArtboardIndex(abNumber);
+    exportImageFiles(dest, ab, [format], 1, "yes");
+  })
 }
 
 // Returns 1 or 2 (corresponding to standard pixel scale and "retina" pixel scale)
