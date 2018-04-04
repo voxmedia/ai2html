@@ -57,24 +57,6 @@ var scriptVersion = "0.67.1";
 // Modify the settings to taste.
 // Copy the contents from column Images and replace the settings statements:
 var defaultBaseSettings = {
-  ai2html_environment: {
-    defaultValue: scriptEnvironment,
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
-  settings_version: {
-    defaultValue: scriptVersion,
-    includeInSettingsBlock: true,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
   create_promo_image: {
     defaultValue: "yes",
     includeInSettingsBlock: false,
@@ -122,7 +104,7 @@ var defaultBaseSettings = {
   },
   output: {
     defaultValue: "one-file",
-    includeInSettingsBlock: true,
+    includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "text",
@@ -148,7 +130,7 @@ var defaultBaseSettings = {
     notes: "Allows user to change folder to write html files, path should be written relative to ai file location. This is ignored if the project_type in the yml is ai2html."
   },
   html_output_extension: {
-    defaultValue: ".html.erb",
+    defaultValue: ".html",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -175,7 +157,7 @@ var defaultBaseSettings = {
     notes: "Use this setting to specify from where the images are being loaded from the HTML file. Defaults to image_output_path"
   },
   create_config_file: {
-    defaultValue: "false",
+    defaultValue: "true",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -184,7 +166,7 @@ var defaultBaseSettings = {
     notes: "This is ignored in env=nyt."
   },
   config_file_path: {
-    defaultValue: "../config.yml",
+    defaultValue: "config.yml",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -247,16 +229,7 @@ var defaultBaseSettings = {
     notes: ""
   },
   use_lazy_loader: {
-    defaultValue: "no",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "yesNo",
-    possibleValues: "",
-    notes: "This setting is no longer needed beginning with v0.60 unless you are using the old resizer classes for legacy reasons."
-  },
-  include_resizer_css_js: {
-    defaultValue: "no",
+    defaultValue: "yes",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -265,7 +238,7 @@ var defaultBaseSettings = {
     notes: "This setting is no longer needed beginning with v0.60 unless you are using the old resizer classes for legacy reasons."
   },
   include_resizer_classes: {
-    defaultValue: "no",
+    defaultValue: "yes",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -293,7 +266,7 @@ var defaultBaseSettings = {
   },
   svg_embed_images: {
     defaultValue: "no",
-    includeInSettingsBlock: false,
+    includeInSettingsBlock: true,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
     inputType: "yesNo",
@@ -408,105 +381,6 @@ var defaultBaseSettings = {
     possibleValues: "",
     notes: ""
   },
-  page_template: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
-  publish_system: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
-  environment: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
-  show_in_compatible_apps: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: true,
-    inputType: "yesNo",
-    possibleValues: "",
-    notes: ""
-  },
-  display_for_promotion_only: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "trueFalse",
-    possibleValues: "",
-    notes: ""
-  },
-  constrain_width_to_text_column: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "trueFalse",
-    possibleValues: "",
-    notes: ""
-  },
-  scoop_publish_fields: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "trueFalse",
-    possibleValues: "",
-    notes: ""
-  },
-  scoop_asset_id: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
-  scoop_username: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
-  scoop_slug: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  },
-  scoop_external_edit_key: {
-    defaultValue: "",
-    includeInSettingsBlock: false,
-    includeInConfigFile: false,
-    useQuoteMarksInConfigFile: false,
-    inputType: "text",
-    possibleValues: "",
-    notes: ""
-  }
 };
 
 // End of settings blocks copied from Google Spreadsheet.
