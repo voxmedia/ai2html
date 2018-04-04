@@ -247,7 +247,7 @@ var defaultBaseSettings = {
     notes: "This setting is no longer needed beginning with v0.60 unless you are using the old resizer classes for legacy reasons."
   },
   include_resizer_classes: {
-    defaultValue: "yes",
+    defaultValue: "no",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -265,7 +265,7 @@ var defaultBaseSettings = {
     notes: "If set to “yes”, ai2html adds data-min-width and data-max-width attributes to each artboard"
   },
   include_resizer_script: {
-    defaultValue: "yes",
+    defaultValue: "no",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -414,32 +414,15 @@ var fonts = [
 {"aifont":"Balto-BoldItalic","family":"'Balto', helvetica, sans-serif","weight":"700","style":"italic"},
 {"aifont":"Balto-Book","family":"'Balto', helvetica, sans-serif","weight":"400","style":""},
 {"aifont":"Balto-BookItalic","family":"'Balto', helvetica, sans-serif","weight":"400","style":"italic"},
-{"aifont":"Balto-Black","family":"'Balto', helvetica, sans-serif","weight":"700","style":""},
-{"aifont":"Balto-Super","family":"'Balto', helvetica, sans-serif","weight":"700","style":""},
-{"aifont":"Balto-Thin","family":"'Balto', helvetica, sans-serif","weight":"400","style":""},
-{"aifont":"Balto-Ultra","family":"'Balto', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"Balto-Black","family":"'Balto', helvetica, sans-serif","weight":"900","style":""},
 
-{"aifont":"Harriet-Medium","family":"'Harriet', helvetica, sans-serif","weight":"400","style":""},
-{"aifont":"Harriet-MediumItalic","family":"'Harriet', helvetica, sans-serif","weight":"400","style":"italic"},
 {"aifont":"Harriet-Bold","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
-{"aifont":"Harriet-BoldItalic","family":"'Harriet', helvetica, sans-serif","weight":"700","style":"italic"},
 {"aifont":"Harriet-Book","family":"'Harriet', helvetica, sans-serif","weight":"400","style":""},
 {"aifont":"Harriet-BookItalic","family":"'Harriet', helvetica, sans-serif","weight":"400","style":"italic"},
-{"aifont":"Harriet-Black","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
-{"aifont":"Harriet-Super","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
-{"aifont":"Harriet-Thin","family":"'Harriet', helvetica, sans-serif","weight":"400","style":""},
-{"aifont":"Harriet-Ultra","family":"'Harriet', helvetica, sans-serif","weight":"700","style":""},
 
-{"aifont":"HarrietDisplay-Medium","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":""},
-{"aifont":"HarrietDisplay-MediumItalic","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":"italic"},
 {"aifont":"HarrietDisplay-Bold","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
 {"aifont":"HarrietDisplay-BoldItalic","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":"italic"},
-{"aifont":"HarrietDisplay-Book","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":""},
-{"aifont":"HarrietDisplay-BookItalic","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":"italic"},
-{"aifont":"HarrietDisplay-Black","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
-{"aifont":"HarrietDisplay-Super","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
-{"aifont":"HarrietDisplay-Thin","family":"'Harriet Display', helvetica, sans-serif","weight":"400","style":""},
-{"aifont":"HarrietDisplay-Ultra","family":"'Harriet Display', helvetica, sans-serif","weight":"700","style":""},
+{"aifont":"HarrietDisplay-Black","family":"'Harriet Display', helvetica, sans-serif","weight":"900","style":""},
 
 {"aifont":"NittiGrotesk","family":"'Nitti',helvetica, sans-serif","weight":"400","style":""},
 {"aifont":"NittiGrotesk-Bold","family":"'Nitti-Bold','Nitti',helvetica, sans-serif","weight":"700","style":""}
