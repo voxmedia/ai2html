@@ -64,13 +64,13 @@ var defaultBaseSettings = {
     notes: ""
   },
   create_fallback_images: {
-    defaultValue: "yes",
+    defaultValue: "smallest",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
-    inputType: "yesNo",
-    possibleValues: "",
-    notes: "Set this to 'yes' to export an image of each artboard in addition to html output"
+    inputType: "text",
+    possibleValues: "all, smallest, largest",
+    notes: "Set this to 'all' to export an image of each artboard in addition to html output"
   },
   image_format: {
     defaultValue: ["auto"],
@@ -181,7 +181,7 @@ var defaultBaseSettings = {
     notes: "This only gets used to write the config file. It’s not used in the nyt mode to read the config.yml. Path should written relative to the ai file location."
   },
   local_preview_template: {
-    defaultValue: "src/layout.mustache",
+    defaultValue: "",
     includeInSettingsBlock: false,
     includeInConfigFile: false,
     useQuoteMarksInConfigFile: false,
@@ -848,7 +848,7 @@ function render() {
   //=====================================
   // write fallback images
   //=====================================
-  if ( isTrue(docSettings.create_fallback_images) ) {
+  if ( docSettings.create_fallback_images ) {
     createFallbackImages(docSettings)
   }
 
@@ -1851,6 +1851,22 @@ function forEachUsableArtboard(cb) {
       cb(ab, i);
     }
   }
+}
+
+
+// Returns id of artboard with smallest area
+function findSmallestArtboard() {
+  var smallestId = -1;
+  var smallestArea = null;
+  forEachUsableArtboard(function(ab, i) {
+    var info = convertAiBounds(ab.artboardRect);
+    var area = info.width * info.height;
+    if (smallestArea == null || area < smallestArea) {
+      smallestId = i;
+      smallestArea = area;
+    }
+  });
+  return smallestId;
 }
 
 // Returns id of artboard with largest area
@@ -2955,12 +2971,21 @@ function createPromoImage(settings) {
 
 // Create images for each artboard to use as fallback images for platforms that don't support html
 function createFallbackImages(settings) {
-  var format = contains(settings.image_format, 'jpg') ? 'jpg' : 'png'
-  forEachUsableArtboard(function(ab, abNumber) {
-    var dest = docPath + settings.html_output_path + 'fallback-' + makeKeyword(ab.name)
+  var format = contains(settings.image_format, 'jpg') ? 'jpg' : 'png';
+  var mode = settings.create_fallback_images;
+  if (mode === 'smallest' || mode === 'largest') {
+    var abNumber = mode === 'smallest' ? findSmallestArtboard() : findLargestArtboard();
+    var ab = doc.artboards[abNumber];
+    var dest = docPath + settings.html_output_path + 'fallback';
     doc.artboards.setActiveArtboardIndex(abNumber);
-    exportImageFiles(dest, ab, [format], 1, "yes");
-  })
+    exportImageFile(dest, ab, format, settings);
+  } else {
+    forEachUsableArtboard(function(ab, abNumber) {
+      var dest = docPath + settings.html_output_path + 'fallback-' + makeKeyword(ab.name);
+      doc.artboards.setActiveArtboardIndex(abNumber);
+      exportImageFile(dest, ab, format, settings);
+    })
+  }
 }
 
 // Returns 1 or 2 (corresponding to standard pixel scale and "retina" pixel scale)
@@ -3337,6 +3362,24 @@ function generateYamlFileContent(breakpoints, settings) {
     // this is the case of fixed responsiveness
     lines.push("max_width: " + getArtboardInfo().pop().effectiveWidth);
   }
+
+  // Include dimensions of the artboards
+  forEachUsableArtboard(function(ab, id) {
+    var info = convertAiBounds(ab.artboardRect);
+    var slug = makeKeyword(ab.name);
+    lines.push('artboard_' + slug + '_width: ' + info.width);
+    lines.push('artboard_' + slug + '_height: ' + info.height);
+  });
+
+  var fbmode = settings.create_fallback_images;
+  if(fbmode === 'smallest' || fbmode === 'largest') {
+    var abNumber = fbmode === 'smallest' ? findSmallestArtboard() : findLargestArtboard();
+    var ab = doc.artboards[abNumber];
+    var info = convertAiBounds(ab.artboardRect);
+    lines.push('fallback_image_width: ' + info.width);
+    lines.push('fallback_image_height: ' + info.height);
+  }
+
   return lines.join('\n') + '\n' + convertSettingsToYaml(settings) + '\n';
 }
 
