@@ -1,3 +1,50 @@
+### v0.76.0
+- Opacity applied to :svg layers is reflected in the HTML output.
+- Fix for a layer stacking bug introduced in v0.75.0 (symbol/div layers were hidden behind artboard images).
+
+### v0.75.0
+- Set the dimensions of each artboard using CSS, so the graphic has the correct size even before the artboard image loads.
+- Added NYT-specify interactive_size setting.
+
+### v0.74.0
+- Minor NYT-specific output changes.
+
+### v0.73.0
+- Add data-name= properties to div symbols if they are named in Illustrator.
+
+### v0.72.3
+- Add class containing layer name to symbol layer containers.
+
+### v0.72.2
+- Fix glitches with rendering to divs (flickering lines, rectangle detection).
+- Add support for npm publish
+
+### v0.72.1
+- Load artboard image immediately if it intersects the browser viewport.
+
+### v0.72.0
+- Use IntersectionObserver api in the resizer function, so artboard images are only loaded when they are visible in the browser viewport.
+
+### v0.71.2
+- Support converting multi-segment lines to divs inside :div layers. (Segments must be horizontal or vertical).
+
+### v0.71.1
+- Render horizontal and vertical lines as divs inside layers with :div suffix.
+
+### v0.71.0
+- Render rectangles and circles as scaling divs if they have a parent layer with the :div suffix in its name.
+
+### v0.70.0
+- Render rectangles and circles as non-scaling divs if they have a parent layer with the :symbol suffix in its name.
+
+### v0.69.1
+- Bug fix
+
+### v0.69.0
+- Improved ids of inline SVG elements (based on original Illustrator object names, but unique within a document)
+- Added "svg-id-prefix" setting for namespacing the ids of inline SVG elements to avoid collisions with other elements on the page
+- Added "data-name" attribute to inline SVG elements, containing the original name of the Illustrator art object
+
 ### v0.68.1
 - Bug fix
 

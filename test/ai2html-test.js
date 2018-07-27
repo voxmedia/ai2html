@@ -95,6 +95,7 @@ describe('Ai2html-specific functions', function () {
     })
   })
 
+  /*
   describe('convertSettingsToYaml()', function () {
     it('ignores settings that are not explicitly included in default environment', function() {
       lib.initDocumentSettings('');
@@ -127,6 +128,17 @@ describe('Ai2html-specific functions', function () {
       var expected = 'show_in_compatible_apps: "no"\nheadline: "Breaking \\"News\\""\nleadin: ""\ndisplay_for_promotion_only: false';
       assert.equal(lib.convertSettingsToYaml(settings), expected);
     })
+  })
+  */
+
+  describe('replaceSvgIds()', function() {
+    it ('tests', function() {
+      assert.equal(lib.replaceSvgIds('id="dot_1_"', 'ai2html-'), 'id="ai2html-dot" data-name="dot"');
+      assert.equal(lib.replaceSvgIds('id="dot_1_"', 'ai2html-'), 'id="ai2html-dot-2" data-name="dot"'); // id cache persists between calls
+      assert.equal(lib.replaceSvgIds('id="_x5F_a_x5F_b_x5F__2_"'), 'id="_a_b_" data-name="_a_b_"');  // hex codes are replaced
+      assert.equal(lib.replaceSvgIds('id="rect_4_" id="rect_8_"'), 'id="rect" data-name="rect" id="rect-2" data-name="rect"');
+    })
+
   })
 
 });
